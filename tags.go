@@ -10,16 +10,16 @@ type field struct {
 	reflect.Value
 }
 
-func parseFields(v reflect.Value) []field {
+func parseFields(scheme string, v reflect.Value) []field {
 	elems := []field{}
 	for i := 0; i < v.NumField(); i++ {
 		if v.Field(i).Kind() == reflect.Struct && v.Type().Field(i).Anonymous {
-			elems = append(elems, parseFields(v.Field(i))...)
+			elems = append(elems, parseFields(scheme, v.Field(i))...)
 			continue
 		}
 
 		tags := parseTag(v.Type().Field(i))
-		if tags.ignore || (v.Field(i).IsZero() && tags.omitempty) {
+		if tags.ignore || (v.Field(i).IsZero() && tags.omitempty) || !tags.isSchemeAllowed(scheme) {
 			continue
 		}
 
@@ -34,6 +34,21 @@ type tags struct {
 	omitempty    bool
 	name         string
 	defaultValue string
+	schemes      []string
+}
+
+func (t *tags) isSchemeAllowed(scheme string) bool {
+	if scheme == "" {
+		return true
+	}
+
+	for _, v := range t.schemes {
+		if v == scheme {
+			return true
+		}
+	}
+
+	return false
 }
 
 func parseTag(field reflect.StructField) (t tags) {
@@ -54,6 +69,8 @@ func parseTag(field reflect.StructField) (t tags) {
 			t.omitempty = true
 		case strings.HasPrefix(keys[i], "default="):
 			t.defaultValue = strings.TrimPrefix(keys[i], "default=")
+		case strings.HasPrefix(keys[i], "scheme="):
+			t.schemes = strings.Split(strings.TrimPrefix(keys[i], "scheme="), ",")
 		}
 	}
 	return

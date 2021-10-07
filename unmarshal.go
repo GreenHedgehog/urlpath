@@ -13,23 +13,44 @@ type Unmarshaler interface {
 }
 
 func Unmarshal(urlpath string, out interface{}) error {
-	outValue := reflect.ValueOf(out)
-	if outValue.Kind() != reflect.Ptr {
-		return errors.New("value for unmarshaling is not a pointer")
-	}
-	if outValue.IsNil() {
-		return errors.New("value for unmarshaling is not a nil pointer")
-	}
-	outValue = outValue.Elem()
-	if outValue.Kind() != reflect.Struct {
-		return errors.New("value for unmarshaling is not of struct kind")
+	outValue, err := prepareUnmarshalTarget(out)
+	if err != nil {
+		return err
 	}
 
 	args, err := parse(strings.TrimPrefix(urlpath, "/"))
 	if err != nil {
 		return err
 	}
-	return decode(args, outValue)
+	return decode("", args, outValue)
+}
+
+func UnmarshalScheme(scheme string, urlpath string, out interface{}) error {
+	outValue, err := prepareUnmarshalTarget(out)
+	if err != nil {
+		return err
+	}
+
+	args, err := parse(strings.TrimPrefix(urlpath, "/"))
+	if err != nil {
+		return err
+	}
+	return decode(scheme, args, outValue)
+}
+
+func prepareUnmarshalTarget(out interface{}) (reflect.Value, error) {
+	outValue := reflect.ValueOf(out)
+	if outValue.Kind() != reflect.Ptr {
+		return outValue, errors.New("value for unmarshaling is not a pointer")
+	}
+	if outValue.IsNil() {
+		return outValue, errors.New("value for unmarshaling is not a nil pointer")
+	}
+	outValue = outValue.Elem()
+	if outValue.Kind() != reflect.Struct {
+		return outValue, errors.New("value for unmarshaling is not of struct kind")
+	}
+	return outValue, nil
 }
 
 func parse(s string) (map[string]string, error) {
@@ -52,8 +73,8 @@ func parse(s string) (map[string]string, error) {
 	return kv, nil
 }
 
-func decode(args map[string]string, v reflect.Value) error {
-	fields := parseFields(v)
+func decode(scheme string, args map[string]string, v reflect.Value) error {
+	fields := parseFields(scheme, v)
 	for _, field := range fields {
 		value, exists := args[field.tags.name]
 		if !exists && field.tags.required {

@@ -15,13 +15,21 @@ func Marshal(v interface{}) (string, error) {
 	if value.Kind() == reflect.Ptr {
 		value = value.Elem()
 	}
-	return encode(value)
+	return encode("", value)
 }
 
-func encode(v reflect.Value) (string, error) {
+func MarshalScheme(scheme string, v interface{}) (string, error) {
+	value := reflect.ValueOf(v)
+	if value.Kind() == reflect.Ptr {
+		value = value.Elem()
+	}
+	return encode(scheme, value)
+}
+
+func encode(scheme string, v reflect.Value) (string, error) {
 	var sb strings.Builder
 
-	fields := parseFields(v)
+	fields := parseFields(scheme, v)
 	for _, field := range fields {
 		value, err := encodeField(field.Value)
 		if err != nil {
