@@ -9,7 +9,7 @@ import (
 
 func TestMarshal(t *testing.T) {
 	var expected = "" +
-		"/E3_key/E3_value/E4_key/E4_value" +
+		"/E3_key/E3_value/E4_key/E4_value/E6_key/E6_value/E7_key/E7_value" +
 		"/S3_key/S3_value/S4_key/S4_value" +
 		"/I2_key/0/I3_key/0/I4_key/4" +
 		"/U2_key/0/U3_key/0/U4_key/4" +
@@ -23,6 +23,9 @@ func TestMarshal(t *testing.T) {
 		E3 string `urlpath:"E3_key;default=E3_value"` // zero-value with default option
 		E4 string `urlpath:"E4_key"`                  // non-zero-value
 		E5 string `urlpath:"E5_key;omitempty"`        // zero-value with omitempty
+		E6 string `urlpath:"E6_key;scheme=one"`       // has single scheme
+		E7 string `urlpath:"E7_key;scheme=one,two"`   // has multiple schemes
+		E8 string `urlpath:"E8_key;scheme=one"`       // zero-value with omitempty with scheme
 	}
 
 	var example = struct {
@@ -59,7 +62,7 @@ func TestMarshal(t *testing.T) {
 		// custom
 		Base64 Base64 `urlpath:"Base64_key"`
 	}{
-		Embeded: Embeded{E: "E_value", E1: "E1_value", E4: "E4_value"},
+		Embeded: Embeded{E: "E_value", E1: "E1_value", E4: "E4_value", E6: "E6_value", E7: "E7_value"},
 		S:       "S_value", S1: "S1_value", S4: "S4_value",
 		I: 12345, I1: 1, I4: 4,
 		U: 12345, U1: 1, U4: 4,
@@ -74,6 +77,42 @@ func TestMarshal(t *testing.T) {
 
 	if got != expected {
 		t.Errorf("expected - %s, got - %s", expected, got)
+	}
+}
+
+func TestMarshalScheme(t *testing.T) {
+	cases := []struct {
+		scheme   string
+		expected string
+	}{
+		{scheme: "color", expected: "/E2_key/E2_value/E3_key/E3_value/E4_key/E4_value"},
+		{scheme: "red", expected: "/E3_key/E3_value"},
+		{scheme: "green", expected: "/E4_key/E4_value"},
+	}
+
+	type testStruct struct {
+		E1 string `urlpath:"E1_key"`
+		E2 string `urlpath:"E2_key;scheme=color"`
+		E3 string `urlpath:"E3_key;scheme=color,red"`
+		E4 string `urlpath:"E4_key;scheme=color,green"`
+	}
+
+	var example = testStruct{
+		E1: "E1_value",
+		E2: "E2_value",
+		E3: "E3_value",
+		E4: "E4_value",
+	}
+
+	for _, c := range cases {
+		got, err := MarshalScheme(c.scheme, &example)
+		if err != nil {
+			t.Errorf("MarshalScheme failed: %v", err)
+		}
+
+		if got != c.expected {
+			t.Errorf("expected - %s, got - %s", c.expected, got)
+		}
 	}
 }
 
